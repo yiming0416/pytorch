@@ -6477,10 +6477,6 @@ FORWARD_FAILURES = {
     "masked.sum",
     "masked.var",
     # === BEGIN BUG SECTION ===
-    # NJT arg is second for these signatures; need to support this
-    *(f"polygamma.polygamma_n_{n}" for n in range(5)),
-    "special.polygamma.special_polygamma_n_0",
-    "ldexp",
     # Returns a tuple of Tensors so it doesn't work with NJT's unary pointwise logic
     "frexp",
     # Need to adjust sample input func to pass the right thing
@@ -6513,7 +6509,6 @@ BACKWARD_FAILURES = {
     "clamp_max",
     "clamp_min",
     "copysign",
-    "digamma",
     "float_power",
     "max.binary",
     "maximum",
