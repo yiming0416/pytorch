@@ -339,14 +339,16 @@ class TestFullyShardCompile(FSDPTest):
         def run_iters(model, optim, n_iter=10, compiled_autograd_backend=None):
             torch.manual_seed(42)
             losses = []
+            if compiled_autograd_backend is not None:
+                # Compiled autograd context must be reused across iterations
+                # in order to track # of warmup runs.
+                maybe_compiled_autograd_ctx = compiled_autograd.enable(
+                    compiler_fn(compiled_autograd_backend)
+                )
+            else:
+                maybe_compiled_autograd_ctx = contextlib.nullcontext()
             for i in range(n_iter):
                 inp = input_creation_fn()
-                if compiled_autograd_backend is not None:
-                    maybe_compiled_autograd_ctx = compiled_autograd.enable(
-                        compiler_fn(compiled_autograd_backend)
-                    )
-                else:
-                    maybe_compiled_autograd_ctx = contextlib.nullcontext()
                 with maybe_compiled_autograd_ctx:
                     out = model(inp)
                     loss = out.sum()
@@ -358,24 +360,22 @@ class TestFullyShardCompile(FSDPTest):
 
         def test_compiled():
             model, optim = model_init_fn()
-            # FSDP2 does lazy init using 1st run, so run it once to init using eager mode
-            run_iters(model, optim, n_iter=1)
-
             model_compiled = torch.compile(model, backend=backend, fullgraph=fullgraph)
             res = run_iters(model_compiled, optim, compiled_autograd_backend=backend)
             return res
 
         def test_eager():
             model, optim = model_init_fn()
-            # FSDP2 does lazy init using 1st run, so run it once to init using eager mode
-            run_iters(model, optim, n_iter=1)
-
             res = run_iters(model, optim)
             return res
 
+        torch._dynamo.reset()
+        torch._dynamo.compiled_autograd.reset()
+        losses_eager = test_eager()
         with torch._dynamo.config.patch(
             inline_inbuilt_nn_modules=True,
             skip_fsdp_hooks=False,
+            warmup_runs=1,
         ), torch._functorch.config.patch(
             recompute_views=True, cse=False
         ), torch._inductor.config.patch(
@@ -390,7 +390,6 @@ class TestFullyShardCompile(FSDPTest):
             else None,
         ):
             losses_compiled = test_compiled()
-        losses_eager = test_eager()
         if not self.fake_pg:
             for loss_compiled, loss_eager in zip(losses_compiled, losses_eager):
                 self.assertTrue(
