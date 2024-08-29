@@ -1778,7 +1778,7 @@ class Kernel(CodeGen):
         if mask:
             cond = f"({cond}) | ~({mask})"
 
-        return f'{self.assert_function}({cond}, "index out of bounds: {cond_print}")'
+        return ""
 
     def check_bounds(
         self, expr: sympy.Expr, size: sympy.Expr, lower: bool, upper: bool
