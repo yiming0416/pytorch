@@ -203,7 +203,16 @@ def init_backend_registration():
     from .wrapper import WrapperCodeGen
 
     if get_scheduling_for_device("cpu") is None:
-        cpu_backends = {"cpp": CppScheduling, "halide": HalideScheduling}
+        cpu_backends = {
+            "cpp": CppScheduling,
+            "halide": HalideScheduling,
+            "triton": TritonScheduling,
+        }
+        if config.cpu_backend == "triton":
+            import os
+            assert (
+                os.environ.get("TRITON_CPU_BACKEND", "0") == "1"
+            ), "TRITON_CPU_BACKEND=1 must be set if you are using Triton on the CPU"
         register_backend_for_device(
             "cpu",
             lambda *args, **kwargs: cpu_backends[config.cpu_backend](*args, **kwargs),
@@ -261,6 +270,7 @@ def get_device_op_overrides(device: str):
     assert isinstance(device, str)
 
     if not device_op_overrides_dict.keys():
+        from . import cpu_device_op_overrides  # noqa: F401
         from .cuda import device_op_overrides  # noqa: F401
         from .xpu import device_op_overrides as xpu_op_overrides  # noqa: F401
 
