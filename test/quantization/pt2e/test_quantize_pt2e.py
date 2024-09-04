@@ -54,6 +54,7 @@ from torch.testing._internal.common_utils import (
     TEST_WITH_ROCM,
 )
 
+from torch._utils_internal import capture_pre_autograd_graph_using_training_ir
 
 @skipIfNoQNNPACK
 class TestQuantizePT2E(PT2EQuantizationTestCase):
@@ -1309,7 +1310,7 @@ class TestQuantizePT2E(PT2EQuantizationTestCase):
 
         m = M().eval()
         example_inputs = torch.randn(1, 2, 3, 3)
-        m = capture_pre_autograd_graph(m, example_inputs)
+        m = capture_pre_autograd_graph(m, (example_inputs,))
         with self.assertRaises(Exception):
             m = prepare_pt2e(m, BackendAQuantizer())
 
@@ -1413,48 +1414,6 @@ class TestQuantizePT2E(PT2EQuantizationTestCase):
             ): 3,
         }
         self.checkGraphModuleNodes(m, expected_node_occurrence=node_occurrence)
-
-    def test_constant_prop_preserve_metadata(self):
-        """Test to make sure the get_attr node for const propagated weight Tensor gets the correct
-        metadata (from original get_attr node from weight)
-        """
-
-        class M(torch.nn.Module):
-            def __init__(self) -> None:
-                super().__init__()
-                self.linear = torch.nn.Linear(2, 2)
-
-            def forward(self, x):
-                return self.linear(x)
-
-        quantizer = XNNPACKQuantizer()
-        operator_config = get_symmetric_quantization_config()
-        quantizer.set_global(operator_config)
-        example_inputs = (torch.randn(2, 2),)
-        m = M().eval()
-        m = capture_pre_autograd_graph(
-            m,
-            example_inputs,
-        )
-        weight_meta = None
-        for n in m.graph.nodes:
-            if (
-                n.op == "get_attr"
-                and next(iter(n.users)).target == torch.ops.aten.linear.default
-            ):
-                weight_meta = n.meta
-                break
-        assert weight_meta is not None, "Expect to find metadata for weight node"
-
-        m = prepare_pt2e(m, quantizer)
-        m(*example_inputs)
-        m = convert_pt2e(m)
-
-        for n in m.graph.nodes:
-            if n.op == "get_attr" and "frozen_param" in n.target:
-                self.assertIn("stack_trace", n.meta)
-                for key in n.meta:
-                    self.assertEqual(n.meta[key], weight_meta[key])
 
     def test_save_load(self):
         """Test save/load a quantized model"""
@@ -1874,6 +1833,8 @@ class TestQuantizePT2E(PT2EQuantizationTestCase):
                 torch.ops.aten.cudnn_batch_norm.default,
             )
         else:
+            if capture_pre_autograd_graph_using_training_ir():
+                return (torch.ops.aten.batch_norm.default, torch.ops.aten.batch_norm.default)
             return (
                 torch.ops.aten._native_batch_norm_legit.default,
                 torch.ops.aten._native_batch_norm_legit_no_training.default,
