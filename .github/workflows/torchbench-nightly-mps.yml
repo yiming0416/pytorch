@@ -1,5 +1,7 @@
-name: Mac MPS
+name: torchbench-nightly-mps
 
+# TODO - this is actually meant to be a nightly run, it's only ciflow workflow for initially debugging
+# Please do not merge
 on:
   push:
     tags:
@@ -7,17 +9,17 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}-${{ github.ref_type == 'branch' && github.sha }}-${{ github.event_name == 'workflow_dispatch' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}-${{ github.ref_type == 'branch' && github.sha }}-${{ github.event_name == 'workflow_dispatch' }}-${{ github.event_name == 'schedule' }}
   cancel-in-progress: true
 
 permissions: read-all
 
 jobs:
-  macos-py3-arm64-build:
-    name: macos-py3-arm64
+  macos-py3-arm64-mps-torchbench-test:
+    name: macos-py3-arm64-mps-torchbench-test
     uses: ./.github/workflows/_mac-build.yml
     with:
-      sync-tag: macos-py3-arm64-build
+      sync-tag: macos-py3-arm64-mps-torchbench-test
       build-environment: macos-py3-arm64
       runner-type: macos-m1-stable
       build-generates-artifacts: true
@@ -27,13 +29,13 @@ jobs:
       # than our AWS macos-m1-14 runners
       test-matrix: |
         { include: [
-          { config: "mps", shard: 1, num_shards: 1, runner: "macos-m1-13" },
-          { config: "mps", shard: 1, num_shards: 1, runner: "macos-m1-14" },
           { config: "mps", shard: 1, num_shards: 1, runner: "macos-m2-15" },
         ]}
+    secrets:
+      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
 
-  macos-py3-arm64-mps-test:
-    name: macos-py3-arm64-mps
+  macos-py3-arm64-mps-torchbench-test:
+    name: macos-py3-arm64-mps-torchbench-test
     uses: ./.github/workflows/_mac-test-mps.yml
     needs: macos-py3-arm64-build
     with:
@@ -42,3 +44,5 @@ jobs:
       # Same as the build job
       python-version: 3.9.12
       test-matrix: ${{ needs.macos-py3-arm64-build.outputs.test-matrix }}
+    secrets:
+      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
