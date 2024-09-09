@@ -18,6 +18,7 @@ from torch.optim.optimizer import register_optimizer_step_post_hook
 from .profiler import (
     _KinetoProfile,
     ExecutionTraceObserver,
+    NumpyEncoder,
     profile,
     ProfilerAction,
     schedule,
@@ -37,6 +38,7 @@ __all__ = [
     "DeviceType",
     "record_function",
     "ExecutionTraceObserver",
+    "NumpyEncoder",
 ]
 
 from . import itt

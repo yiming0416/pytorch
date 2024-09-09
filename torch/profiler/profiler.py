@@ -11,6 +11,8 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 from typing_extensions import Self
 from warnings import warn
 
+import numpy as np
+
 import torch
 import torch.autograd.profiler as prof
 from torch._C import _get_privateuse1_backend_name
@@ -32,9 +34,21 @@ __all__ = [
     "tensorboard_trace_handler",
     "profile",
     "ExecutionTraceObserver",
+    "NumpyEncoder",
 ]
 PROFILER_STEP_NAME = "ProfilerStep"
 
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return json.JSONEncoder.default(self, obj)
 
 def supported_activities():
     """
@@ -187,7 +201,9 @@ class _KinetoProfile:
         if kineto_available():
             dist_info = self._get_distributed_info()
             if dist_info:
-                self.add_metadata_json("distributedInfo", json.dumps(dist_info))
+                self.add_metadata_json(
+                    "distributedInfo", json.dumps(dist_info, cls=NumpyEncoder)
+                )
 
             if hasattr(torch, "_inductor"):
                 import torch._inductor.config as inductor_config
@@ -931,5 +947,5 @@ class ExecutionTraceObserver(_ITraceObserver):
         ):
             pg_config_info = torch.distributed.distributed_c10d._world.pg_config_info
             torch.autograd._record_function_with_args_enter(
-                "## process_group:init ##", json.dumps(pg_config_info)
+                "## process_group:init ##", json.dumps(pg_config_info, cls=NumpyEncoder)
             )

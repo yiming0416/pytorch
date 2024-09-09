@@ -20,6 +20,7 @@ from typing import List, Optional
 from unittest.mock import patch
 
 import expecttest
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -32,6 +33,7 @@ from torch.profiler import (
     _utils,
     DeviceType,
     kineto_available,
+    NumpyEncoder,
     profile,
     ProfilerAction,
     ProfilerActivity,
@@ -1988,6 +1990,22 @@ assert KinetoStepTracker.current_step() == initial_step + 2 * niters
         p.events()
         self.assertGreater(stats.function_events_build_tree_call_duration_us, 0)
         self.assertGreater(stats.number_of_events, 0)
+
+    def test_encoder(self):
+        obj = np.int64(42)
+        expected = 42
+        result = json.dumps(obj, cls=NumpyEncoder)
+        self.assertEqual(expected, int(result))
+
+        obj = np.float64(3.14)
+        expected = 3.14
+        result = json.dumps(obj, cls=NumpyEncoder)
+        self.assertEqual(expected, float(result))
+
+        obj = np.array([1, 2, 3])
+        expected = [1, 2, 3]
+        result = json.dumps(obj, cls=NumpyEncoder)
+        self.assertEqual(expected, json.loads(result))
 
 
 class SimpleNet(nn.Module):
