@@ -291,7 +291,7 @@ def _recursive_post_grad_passes(gm, is_inference: bool = False):
 
 def split_const_gm(
     gm: torch.fx.GraphModule,
-    lifted_constants: Optional[Dict[str, Any]] = None,
+    lifted_constant_names: Optional[List[str]] = None,
     skip_folding_node_fn: Optional[Callable[[torch.fx.Node], bool]] = None,
 ) -> Tuple[torch.fx.GraphModule, Dict[str, int]]:
     """
@@ -319,7 +319,7 @@ def split_const_gm(
     )
 
     const_gm, const_result = run_and_get_constant_graph(
-        gm, lifted_constants, skip_folding_node_fn
+        gm, lifted_constant_names, skip_folding_node_fn
     )
 
     const_outputs = {
