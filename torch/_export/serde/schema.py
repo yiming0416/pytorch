@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Tuple
 from torch._export.serde.union import _Union
 
 # NOTE: Please update this value if any modifications are made to the schema
-SCHEMA_VERSION = (7, 3)
+SCHEMA_VERSION = (7, 4)
 TREESPEC_VERSION = 1
 
 
@@ -183,6 +183,13 @@ class NamedArgument:
     # Argument name from the operator schema
     name: str
     arg: Argument
+
+
+@dataclass
+class NNModuleStack:
+    keys: List[str]
+    paths: List[str]
+    types: List[str]
 
 
 @dataclass
