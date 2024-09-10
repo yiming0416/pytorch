@@ -53,6 +53,8 @@ def call_hook(hook, *args, **kwargs):
         raise RuntimeError("Tensor post accumulate grad hooks should return None.")
     return result
 
+def call_lambda(inputs: List[torch.tensor], idx: int, **kwargs):
+    return torch._C._dynamo.compiled_autograd.call_lambda(inputs, idx)
 
 def wrap_numpy(f):
     r"""Decorator that turns a function from ``np.ndarray``s to ``np.ndarray``s into a function
