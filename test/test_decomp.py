@@ -1,3 +1,13 @@
+Error processing line 1 of /home/tmanlaibaatar/local/miniconda3/envs/pytorch/lib/python3.10/site-packages/vision-1.0.0-py3.10-nspkg.pth:
+
+  Traceback (most recent call last):
+    File "/home/tmanlaibaatar/local/miniconda3/envs/pytorch/lib/python3.10/site.py", line 186, in addpackage
+      exec(line)
+    File "<string>", line 1, in <module>
+    File "<frozen importlib._bootstrap>", line 568, in module_from_spec
+  AttributeError: 'NoneType' object has no attribute 'loader'
+
+Remainder of file ignored
 # Owner(s): ["module: decompositions"]
 
 import functools
@@ -10,7 +20,7 @@ from functools import partial
 import torch._inductor.decomposition
 import torch.autograd
 from torch import Tensor
-from torch._decomp import core_aten_decompositions, decomposition_table
+from torch._decomp import _is_cia_op, core_aten_decompositions, decomposition_table
 from torch._dispatch.python import enable_python_dispatcher
 from torch._ops import DispatchKey
 from torch.testing import make_tensor
@@ -62,7 +72,7 @@ decomposition_names = {
 core_decomposition_names = {
     overload_to_aten_name(k)
     for k in core_aten_decompositions()
-    if isinstance(k, torch._ops.OpOverload)
+    if isinstance(k, torch._ops.OpOverload) and not _is_cia_op(k)
 }
 _decomp_test_ops = [
     op
