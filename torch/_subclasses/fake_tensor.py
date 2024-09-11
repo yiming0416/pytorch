@@ -1877,6 +1877,7 @@ class FakeTensorMode(TorchDispatchMode):
                 for a in flat_args
             )
         ):
+            log.debug("propagate_real_tensors %s", func)
             real_flat_args = [maybe_to_real_tensor(a) for a in flat_args]
             real_args, real_kwargs = pytree.tree_unflatten(real_flat_args, args_spec)
             real_out = func(*real_args, **real_kwargs)
@@ -1888,7 +1889,7 @@ class FakeTensorMode(TorchDispatchMode):
             # However, if there's a bug in the condition above, this condition
             # will also trigger.
             log.debug(
-                "propagate_real_tensors skipped %s(%s, %s) %s",
+                "SKIPPED propagate_real_tensors %s(%s, %s) %s",
                 func,
                 flat_arg_fake_tensors,
                 flat_args,
@@ -1897,11 +1898,18 @@ class FakeTensorMode(TorchDispatchMode):
 
         def maybe_propagate_real_tensors(fake_out: T) -> T:
             import sympy
+            log.debug("maybe_propagate_real_tensors %s", func)
 
             def go(t: object, real_t: Tensor) -> None:
                 if isinstance(t, FakeTensor):
                     # NB: unconditionally overwrite
+                    log.debug("maybe_propagate_real_tensors %s -> %s", id(t), id(real_t))
                     t.real_tensor = real_t
+                    for s, real_s in zip(t.size(), real_t.size()):
+                        go(s, real_s)
+                    for s, real_s in zip(t.stride(), real_t.stride()):
+                        go(s, real_s)
+                    go(t.storage_offset(), real_t.storage_offset())
                 elif isinstance(t, py_sym_types) and free_unbacked_symbols(t):
                     if isinstance(t.node.expr, sympy.Symbol):
                         assert self.shape_env is not None
@@ -1940,13 +1948,13 @@ class FakeTensorMode(TorchDispatchMode):
                 )
             ):
                 with self:
-                    return decomposition_table[func](*args, **kwargs)
+                    return maybe_propagate_real_tensors(decomposition_table[func](*args, **kwargs))
 
             with self:
                 # Decomposes CompositeImplicitAutograd ops
                 r = func.decompose(*args, **kwargs)
                 if r is not NotImplemented:
-                    return r
+                    return maybe_propagate_real_tensors(r)
 
         # prims already wrap FakeTensor inputs to FakeTensor outputs
         # and do device logic, we dont need do anything but run them
